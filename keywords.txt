@@ -1,0 +1,15 @@
+# Datatypes
+
+GP22	KEYWORD1
+
+# Methods and Functions
+
+begin	KEYWORD2
+measure	KEYWORD2
+readStatus KEYWORD2
+readResult	KEYWORD2
+testComms	KEYWORD2
+measConv	KEYWORD2
+setExpectedHits KEYWORD2
+getExpectedHits KEYWORD2
+updateConfig	KEYWORD2
