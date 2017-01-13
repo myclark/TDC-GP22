@@ -18,7 +18,8 @@ public:
   GP22(int slaveSelectPin);
   ~GP22();
 
-  // Start communicating. Transfers the config over as well.
+  // Start communicating. Transfers the config over as well so call this
+  // after configuring the settings as required.
   void begin();
 
   // Initialise the GP22, then it waits for an event to measure.
@@ -47,8 +48,22 @@ public:
   void setQuadRes(bool on);
   bool isQuadRes();
 
+  // First wave mode settings
   void setFirstWaveMode(bool on);
   bool isFirstWaveMode();
+  // This is to set the relative delay of the stops after the first wave.
+  // Rule: 3 <= stop1 < stop2 < stop3 <= 63
+  void setFirstWaveDelays(uint8_t stop1, uint8_t stop2, uint8_t stop3);
+  // The pulse width measurement setting
+  void setPulseWidthMeasOn(bool on);
+  bool isPulseWidthMeasOn();
+  // The first wave edge sensitivity setting
+  void setFirstWaveRisingEdge(bool on);
+  bool isFirstWaveRisingEdge();
+  // The first wave offset setting controls the initial offset.
+  // The value can be between -36 and +35 mV.
+  void setFirstWaveOffset(int8_t offset);
+  int8_t getFirstWaveOffset();
 
   // This writes the config register to the GP22.
   // Call this after changing any of the settings to update them on the GP22 itself.
@@ -65,15 +80,15 @@ private:
   // The slave select pin used by SPI to communicate with the GP22
   int _ssPin;
 
-  // Set the config to single pulse measurement as default for now
+  // Set the config to single pulse measurement mode 2 as default for now
   uint8_t _config[7][4] = {
-    {0xF3, 0x07, 0x68, 0x00},
-    {0x21, 0x42, 0x00, 0x00}, // What is [1][1] = 0x42 vs. 0x23?
-    {0x20, 0x00, 0x00, 0x00},
-    {0x20, 0x00, 0x00, 0x00},
-    {0x10, 0x00, 0x00, 0x00},
-    {0x40, 0x00, 0x00, 0x00},
-    {0x40, 0x20, 0x60, 0x00}
+    {0xF3, 0x07, 0x68, 0x00}, // Reg 0
+    {0x21, 0x42, 0x00, 0x00}, // Reg 1
+    {0x20, 0x00, 0x00, 0x00}, // Reg 2
+    {0x20, 0x00, 0x00, 0x00}, // Reg 3
+    {0x20, 0x00, 0x00, 0x00}, // Reg 4
+    {0x40, 0x00, 0x00, 0x00}, // Reg 5
+    {0x40, 0x20, 0x60, 0x00}  // reg 6
   };
 
   //uint8_t _readRegs[7] = {0x81};

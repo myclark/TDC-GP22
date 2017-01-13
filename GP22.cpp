@@ -143,7 +143,7 @@ void GP22::setExpectedHits(uint8_t hits) {
   // Also, so this can be called before the begin function is called.
 }
 uint8_t GP22::getExpectedHits() {
-  return _config[1][1] & 0x07;
+  return _config[1][1] & B00000111;
 }
 
 void GP22::setSingleRes(bool on) {
@@ -172,7 +172,7 @@ void GP22::setDoubleRes(bool on) {
   _config[6][2] = configPiece;
 }
 bool GP22::isDoubleRes() {
-  return _config[6][2] & 0x10;
+  return (_config[6][2] & B00010000) > 0;
 }
 void GP22::setQuadRes(bool on) {
   uint8_t configPiece = _config[6][2];
@@ -187,5 +187,171 @@ void GP22::setQuadRes(bool on) {
   _config[6][2] = configPiece;
 }
 bool GP22::isQuadRes() {
-  return _config[6][2] & 0x20;
+  return (_config[6][2] & B00100000) > 0;
+}
+
+void GP22::setFirstWaveMode(bool on) {
+  // First wave on/off is bit 30 of reg 3
+  uint8_t configPiece = _config[4][0];
+
+  bitSet(configPiece, 6);
+
+  _config[4][0] = configPiece;
+}
+bool GP22::isFirstWaveMode() {
+  return (_config[4][0] & B01000000) > 0;
+}
+
+void GP22::setFirstWaveDelays(uint8_t stop1, uint8_t stop2, uint8_t stop3) {
+  // Grab the relevant bytes from Reg 3 to modify
+  FourByte configPiece = { 0 };
+  configPiece.bit8[3] = _config[3][0];
+  configPiece.bit8[2] = _config[3][1];
+  configPiece.bit8[1] = _config[3][2];
+  configPiece.bit8[0] = _config[3][3];
+
+  // DELREL1 is bits 8-13
+  // DELREL2 is bits 14-19
+  // DELREL3 is bits 20-25
+
+  /// First sort out DELREL3
+  // To make things easier, combine the top two bytes
+  uint16_t topBytes = configPiece.bit16[1];
+  // Now DELREL3 is bits 4-9 of topBytes
+  // First clear bits 4-9.
+  topBytes = topBytes ^ (topBytes & 0x03F0);
+  // Now add the setting to those bits
+  topBytes = topBytes + ((uint16_t)stop3 << 4);
+  // Now we can write this back
+  configPiece.bit16[1] = topBytes;
+
+  /// Now DELREL2
+  // This is tricky as it is spread accross the top and bottom half.
+  // So, we grab the middle bytes.
+  uint16_t middleBytes = ((uint16_t)configPiece.bit8[2] << 8) + configPiece.bit8[1];
+  // Now DELREL2 is in bits 6-11 of middleBytes
+  // So clear the bits that need to be modified
+  middleBytes = middleBytes ^ (middleBytes & 0x0FC0);
+  // Now add the new settings
+  middleBytes = middleBytes + ((uint16_t)stop2 << 6);
+  // Now we can put the bytes back
+  configPiece.bit8[1] = (uint8_t)middleBytes;
+  configPiece.bit8[2] = (uint8_t)(middleBytes >> 8);
+
+  // Now DELREL1
+  // This should be easy, as it's all in one byte
+  uint8_t byte1 = configPiece.bit8[1];
+  // So DELREL1 is in bits 0-5 of byte1
+  byte1 = byte1 ^ (byte1 & B00111111);
+  byte1 = byte1 + stop1;
+  // Now we can write this back
+  configPiece.bit8[1] = byte1;
+}
+
+void GP22::setPulseWidthMeasOn(bool on) {
+  // DIS_PW, disable pusle width measurement is contained in bit 16, Reg 4
+  uint8_t configPiece = _config[4][1];
+
+  // bit 16 = 0 => Pulse width measurement enabled
+  // bit 16 = 1 => disabled
+  if (on)
+    bitClear(configPiece, 0);
+  else
+    bitSet(configPiece, 0);
+
+  _config[4][1] = configPiece;
+}
+bool GP22::isPulseWidthMeasOn() {
+  return (_config[4][1] & B00000001) == 0;
+}
+
+void GP22::setFirstWaveRisingEdge(bool on) {
+  uint8_t configPiece = _config[4][2];
+
+  // bit 15 = 0 => Rising (positive) edge sensitive
+  // bit 15 = 1 => Falling (negative) edge sensitive
+  if (on)
+    bitClear(configPiece, 7);
+  else
+    bitSet(configPiece, 7);
+
+  _config[4][2] = configPiece;
+}
+bool GP22::isFirstWaveRisingEdge() {
+  return (_config[4][2] & B10000000) > 0;
+}
+
+void GP22::setFirstWaveOffset(int8_t offset) {
+  // There are three seperate settings that need to be configured.
+  // First is the OFFS setting, in bits 8-12 of REG4.
+  // The OFFS setting is a number between -16 and +15 in twos complement.
+  // The next two settings are for adding on an addition +- 20 mV.
+  /// First lets grab the byte in question
+  uint8_t configPiece = _config[4][2];
+
+  // Now we need to check if we need the extra ranges
+  if (offset > 15) {
+    // We are greater than the offset allows, so we need the extra +20 range
+    offset -= 20;
+    // Offset is now what it was, minus what the extra range gives
+    bitSet(configPiece, 6);
+    bitClear(configPiece, 5);
+  } else if (offset < -16) {
+    // The offset is less than it can be, so we need the extra -20 range
+    offset += 20;
+    // Now offset is what it was, add the extra range amount
+    bitSet(configPiece, 5);
+    bitClear(configPiece, 6);
+  } else {
+    // We seem to have an offset that is within range, so turn off the extra ranges
+    bitClear(configPiece, 5);
+    bitClear(configPiece, 6);
+  }
+
+  // Now we need to load the offset into bits 0-4 of the config byte.
+  // It needs to be loaded as twos complement.
+  // First lets clear the relevent bits
+  configPiece = configPiece ^ (configPiece & B00011111);
+  if ((offset > 0) && (offset <= 15)) {
+    // If the number is positive, then we can just add it normally
+    configPiece += offset;
+  } else if ((offset < 0) && (offset >= -16)) {
+    // This means we are in the negative part, so this is tricky.
+    // Need to do a 5 bit 2s complement conversion.
+    // First start with 5 bits all 1.
+    uint8_t twosComp = 31;
+    // Now add one to the offset, and then add it to the 1s
+    twosComp = twosComp + (offset + 1);
+    // Now bits 0-4 should contain the correct 5 bit 2s complement number
+    configPiece += twosComp;
+  }
+
+  // So now that the config is set, put it back in place
+  _config[4][2] = configPiece;
+}
+int8_t GP22::getFirstWaveOffset() {
+  // First grab the relevant byte
+  uint8_t configPiece = _config[4][2];
+  // Next we need to grab the twos complement offset number
+  uint8_t twosComp = configPiece & B00011111;
+  // Prepare a variable to store the offset
+  int8_t offset = 0;
+  // Now parse the twos complement number
+  if (twosComp > 15) {
+    // If this number is greater than 15, then it must be negative
+    offset = -1 * ((~twosComp) + 1);
+  } else {
+    // If it is less than that, then it is positive and nothing needs to be done
+    offset = twosComp;
+  }
+  // Now we need to deal with any of the range additions
+  if ((configPiece & B00100000) > 0) {
+    // OFFSRNG1 is enabled, so take 20 from the offset
+    offset -= 20;
+  } else if ((configPiece & B01000000) > 0) {
+    // OFFSRNG2 is enabled, so add 20 to the offset
+    offset += 20;
+  }
+
+  return offset;
 }
