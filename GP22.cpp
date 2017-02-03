@@ -189,17 +189,30 @@ void GP22::setQuadRes(bool on) {
 bool GP22::isQuadRes() {
   return (_config[6][2] & B00100000) > 0;
 }
+void GP22::setAutoCalcOn(bool on) {
+  uint8_t configPiece = _config[3][0];
+
+  if (on)
+    bitSet(configPiece, 0);
+  else
+    bitClear(configPiece, 0);
+
+  _config[3][0] = configPiece;
+}
+bool GP22::isAutoCalcOn() {
+  return (_config[3][0] & B10000000) > 0;
+}
 
 void GP22::setFirstWaveMode(bool on) {
   // First wave on/off is bit 30 of reg 3
-  uint8_t configPiece = _config[4][0];
+  uint8_t configPiece = _config[3][0];
 
   bitSet(configPiece, 6);
 
   _config[4][0] = configPiece;
 }
 bool GP22::isFirstWaveMode() {
-  return (_config[4][0] & B01000000) > 0;
+  return (_config[3][0] & B01000000) > 0;
 }
 
 void GP22::setFirstWaveDelays(uint8_t stop1, uint8_t stop2, uint8_t stop3) {

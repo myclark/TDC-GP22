@@ -39,16 +39,22 @@ public:
   float measConv(uint32_t input);
 
   //// These are the config setting/getting functions
+  // This is for the number of expected hits, can be 2-4
   void setExpectedHits(uint8_t hits);
   uint8_t getExpectedHits();
+  // These are for the resolution mode of the measurement
   void setSingleRes(bool on);
   bool isSingleRes();
   void setDoubleRes(bool on);
   bool isDoubleRes();
-  void setQuadRes(bool on);
+  void setQuadRes(bool on); // Default on
   bool isQuadRes();
+  // This is for the MM2 Auto calc, if on, writes the sum of
+  // all hits to register 4
+  void setAutoCalcOn(bool on);
+  bool isAutoCalcOn();
 
-  // First wave mode settings
+  //// First wave mode settings
   void setFirstWaveMode(bool on);
   bool isFirstWaveMode();
   // This is to set the relative delay of the stops after the first wave.
