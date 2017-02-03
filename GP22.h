@@ -39,22 +39,44 @@ public:
   float measConv(uint32_t input);
 
   //// These are the config setting/getting functions
-  // This is for the number of expected hits, can be 2-4
+  /// This is for the number of expected hits, can be 2-4
   void setExpectedHits(uint8_t hits);
   uint8_t getExpectedHits();
-  // These are for the resolution mode of the measurement
-  void setSingleRes(bool on);
+
+  /// These are for the resolution mode of the measurement
+  void setSingleRes();
   bool isSingleRes();
-  void setDoubleRes(bool on);
+  void setDoubleRes();
   bool isDoubleRes();
-  void setQuadRes(bool on); // Default on
+  void setQuadRes(); // Default on
   bool isQuadRes();
+
+  /// Measurement mode settings
+  void setMeasurementMode(uint8_t mode); // Can be 1 or 2
+  uint8_t getMeasurementMode();
+  // This is for the measurement mode 1 clock pre-divider.
+  // This can be 1, 2 or 4.
+  void setClkPreDiv(uint8_t div);
+  uint8_t getClkPreDiv();
   // This is for the MM2 Auto calc, if on, writes the sum of
   // all hits to register 4
   void setAutoCalcOn(bool on);
   bool isAutoCalcOn();
 
-  //// First wave mode settings
+  /// ALU processing operator settings
+  // In MM1 ALU calculates HIT1-HIT2, MM2 it calcs HIT2 - HIT1
+  // The operators are also different for both modes, see datasheet
+  // Define HIT1 operator
+  void defineHit1Op(uint8_t op);
+  uint8_t getHit1Op();
+  // Define HIT2 operator
+  void defineHit2Op(uint8_t op);
+  uint8_t getHit2Op();
+
+  /// Set the channel edge sensitivities
+  // TODO: Write the config setters/getters for RFEDGE 1 and 2
+
+  /// First wave mode settings
   void setFirstWaveMode(bool on);
   bool isFirstWaveMode();
   // This is to set the relative delay of the stops after the first wave.

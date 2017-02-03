@@ -96,8 +96,9 @@ float GP22::measConv(uint32_t input) {
   float qConv = pow(2.0, -16);    //Q conversion factor
   float tRef = (1.0) / (4000000.0); //4MHz clock
   float timeBase = 1000000.0;   //Microseconds
+  float N = getClkPreDiv(); // The Clock predivider correction
 
-  return ((float)input) * tRef * qConv * timeBase;
+  return ((float)input) * tRef * qConv * timeBase * N;
 }
 
 void GP22::updateConfig() {
@@ -111,29 +112,85 @@ void GP22::updateConfig() {
 
 //// The config setting/getting functions
 
+// Measurement mode selection
+void GP22::setMeasurementMode(uint8_t mode) {
+  uint8_t configPiece = _config[0][2];
+
+  // Reg 0, bit 11, called MESSB2 selects which measurement mode
+  // to use. MESSB2 = 0 is mode 1, MESSB2 = 1 is mode 2.
+
+  if (mode == 1) {
+    // Set MESSB2 = 0 (Measurement Mode 1)
+    bitClear(configPiece, 3);
+
+    // In measurement mode 1, only double res is available.
+    // Thus, if the current settings are for quad res (from MM2), 
+    // change it to double res instead.
+    if (isQuadRes())
+      setDoubleRes();
+  } else if (mode == 2) {
+    // Set MESSB2 = 1 (Measurement Mode 2)
+    bitSet(configPiece, 3);
+  }
+
+  _config[0][3] = configPiece;
+}
+uint8_t GP22::getMeasurementMode() {
+  return (_config[0][2] & B00001000) > 0;
+}
+
+// This is for the measurement mode 1 clock pre-divider
+void GP22::setClkPreDiv(uint8_t div) {
+  uint8_t configPiece = _config[0][1];
+
+  // The only valid divisions are 1, 2 and 4
+  if (div == 1 || div == 2 || div == 4) {
+    // Start by clearing the bits (same as setting div to 1)
+    bitClear(configPiece, 4);
+    bitClear(configPiece, 5);
+
+    // Now set the bits as required for div = 2 or 4
+    if (div == 2)
+      bitSet(configPiece, 4);
+    else if (div == 4)
+      bitSet(configPiece, 5);
+  }
+
+  _config[0][1] = configPiece;
+}
+uint8_t GP22::getClkPreDiv() {
+  uint8_t divRaw = (_config[0][1] & B00110000) >> 4;
+  uint8_t div = 0;
+
+  switch (divRaw) {
+    case 0:
+      div = 1;
+      break;
+    case 1:
+      div = 2;
+      break;
+    case 2:
+    case 3:
+      div = 4;
+      break;
+  }
+
+  return div;
+}
+
 // The hits of Ch1 are stored in bits 16-18 in register 1
 void GP22::setExpectedHits(uint8_t hits) {
   // First lets get the bit of the config register we want to modify
   uint8_t configPiece = _config[1][1];
 
   // Now, we need to set and clear bits as necessary
-  // In measurement mode 2, the minimum number of hits is 2 (start is included), max is 4.
-  switch (hits) {
-    case 2:
-      bitClear(configPiece, 0);
-      bitSet(configPiece, 1);
-      bitClear(configPiece, 2);
-      break;
-    case 3:
-      bitSet(configPiece, 0);
-      bitSet(configPiece, 1);
-      bitClear(configPiece, 2);
-      break;
-    case 4:
-      bitClear(configPiece, 0);
-      bitClear(configPiece, 1);
-      bitSet(configPiece, 2);
-      break;
+  // The minimum number of hits is 0, the max is 4.
+  if (hits >= 0 & hits <= 4) {
+    bitClear(configPiece, 0);
+    bitClear(configPiece, 1);
+    bitClear(configPiece, 2);
+
+    configPiece += hits;
   }
 
   // Now that the peice of the config that needed to be changed has been, lets put it back
@@ -146,43 +203,67 @@ uint8_t GP22::getExpectedHits() {
   return _config[1][1] & B00000111;
 }
 
-void GP22::setSingleRes(bool on) {
+// Define HIT operators for ALU processing
+void GP22::defineHit1Op(uint8_t op) {
+  uint8_t configPiece = _config[1][0];
+
+  // Clear the first 4 bits of the byte
+  for (int i = 0; i < 4; i++)
+    bitWrite(configPiece, i, 0);
+
+  // Now write the operator into the first four bits
+  configPiece += op;
+
+  // Then write to the config
+  _config[1][0] = configPiece;
+}
+void GP22::defineHit2Op(uint8_t op) {
+  uint8_t configPiece = _config[1][0];
+
+  // Clear the second 4 bits of the byte
+  for (int i = 4; i < 8; i++)
+    bitWrite(configPiece, i, 0);
+
+  // Now write the op into the top 4 bits
+  configPiece += (op << 4);
+
+  // Then write to the config
+  _config[1][0] = configPiece;
+}
+uint8_t GP22::getHit1Op() {
+  return _config[1][0] & B00001111;
+}
+uint8_t GP22::getHit2Op() {
+  return (_config[1][0] & B11110000) >> 4;
+}
+
+void GP22::setSingleRes() {
   uint8_t configPiece = _config[6][2];
 
-  if (on) {
-    setDoubleRes(false);
-    setQuadRes(false);
-  }
+  bitClear(configPiece, 4);
+  bitClear(configPiece, 5);
 
   _config[6][2] = configPiece;
 }
 bool GP22::isSingleRes() {
   return !isDoubleRes() && !isQuadRes();
 }
-void GP22::setDoubleRes(bool on) {
+void GP22::setDoubleRes() {
   uint8_t configPiece = _config[6][2];
 
-  if (on) {
-    bitSet(configPiece, 4);
-    setQuadRes(false);
-  } else {
-    bitClear(configPiece, 4);
-  }
+  bitSet(configPiece, 4);
+  bitClear(configPiece, 5);
 
   _config[6][2] = configPiece;
 }
 bool GP22::isDoubleRes() {
   return (_config[6][2] & B00010000) > 0;
 }
-void GP22::setQuadRes(bool on) {
+void GP22::setQuadRes() {
   uint8_t configPiece = _config[6][2];
 
-  if (on) {
-    bitSet(configPiece, 5);
-    setDoubleRes(false);
-  } else {
-    bitClear(configPiece, 5);
-  }
+  bitSet(configPiece, 5);
+  bitClear(configPiece, 4);
 
   _config[6][2] = configPiece;
 }
