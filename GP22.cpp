@@ -237,6 +237,38 @@ uint8_t GP22::getHit2Op() {
   return (_config[1][0] & B11110000) >> 4;
 }
 
+// Define the edge sensitivities of the inputs
+void GP22::setEdgeSensitivity(uint8_t start, uint8_t stop1, uint8_t stop2) {
+  uint8_t reg0p3 = _config[0][3];
+  uint8_t reg2p0 = _config[2][0];
+
+  // Deal with the start, which can only be rising or falling, not both.
+  if (start == 0 || start == 1) {
+    bitWrite(reg0p3, 0, start);
+  }
+
+  // Stop 1 and 2 can be rising, falling or both.
+  if (stop1 == 0 || stop1 == 1) {
+    // Deal with rising or falling
+    bitWrite(reg0p3, 1, stop1);
+  } else if(stop1 == 2) {
+    // Deal with both, i.e. set to rising sensitivity
+    // and make the stop trigger on both edges.
+    bitClear(reg0p3, 1);
+    bitClear(reg2p0, 3);
+  }
+  // Repeat for stop2
+  if (stop2 == 0 || stop2 == 1) {
+    bitWrite(reg0p3, 2, stop2);
+  } else if (stop2 == 2) {
+    bitClear(reg0p3, 2);
+    bitClear(reg2p0, 4);
+  }
+
+  _config[0][3] = reg0p3;
+  _config[2][0] = reg2p0;
+}
+
 void GP22::setSingleRes() {
   uint8_t configPiece = _config[6][2];
 

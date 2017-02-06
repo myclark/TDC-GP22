@@ -74,7 +74,9 @@ public:
   uint8_t getHit2Op();
 
   /// Set the channel edge sensitivities
-  // TODO: Write the config setters/getters for RFEDGE 1 and 2
+  // The edge sensitivity can be 0 (rising), 1 (falling) or 2 (both).
+  // (NOTE: start cannot be both).
+  void setEdgeSensitivity(uint8_t start, uint8_t stop1, uint8_t stop2);
 
   /// First wave mode settings
   void setFirstWaveMode(bool on);
