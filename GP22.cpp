@@ -110,6 +110,13 @@ void GP22::updateConfig() {
     transfer4B((0x80 + i), _config[i][0], _config[i][1], _config[i][2], _config[i][3]);
 }
 
+void GP22::getConfig(uint32_t * arrayToFill) {
+  // Fill the array with the config registers, combined into 32 bits
+
+  for (uint8_t i = 0; i < 7; i++)
+    arrayToFill[i] = (_config[i][0] << 24) + (_config[i][1] << 16) + (_config[i][2] << 8) + _config[i][3];
+}
+
 //// The config setting/getting functions
 
 // Measurement mode selection
@@ -133,7 +140,7 @@ void GP22::setMeasurementMode(uint8_t mode) {
     bitSet(configPiece, 3);
   }
 
-  _config[0][3] = configPiece;
+  _config[0][2] = configPiece;
 }
 uint8_t GP22::getMeasurementMode() {
   return (_config[0][2] & B00001000) > 0;
@@ -239,33 +246,33 @@ uint8_t GP22::getHit2Op() {
 
 // Define the edge sensitivities of the inputs
 void GP22::setEdgeSensitivity(uint8_t start, uint8_t stop1, uint8_t stop2) {
-  uint8_t reg0p3 = _config[0][3];
+  uint8_t reg0p2 = _config[0][2];
   uint8_t reg2p0 = _config[2][0];
 
   // Deal with the start, which can only be rising or falling, not both.
   if (start == 0 || start == 1) {
-    bitWrite(reg0p3, 0, start);
+    bitWrite(reg0p2, 0, start);
   }
 
   // Stop 1 and 2 can be rising, falling or both.
   if (stop1 == 0 || stop1 == 1) {
     // Deal with rising or falling
-    bitWrite(reg0p3, 1, stop1);
-  } else if(stop1 == 2) {
+    bitWrite(reg0p2, 1, stop1);
+  } else if (stop1 == 2) {
     // Deal with both, i.e. set to rising sensitivity
     // and make the stop trigger on both edges.
-    bitClear(reg0p3, 1);
-    bitClear(reg2p0, 3);
+    bitClear(reg0p2, 1);
+    bitSet(reg2p0, 3);
   }
   // Repeat for stop2
   if (stop2 == 0 || stop2 == 1) {
-    bitWrite(reg0p3, 2, stop2);
+    bitWrite(reg0p2, 2, stop2);
   } else if (stop2 == 2) {
-    bitClear(reg0p3, 2);
-    bitClear(reg2p0, 4);
+    bitClear(reg0p2, 2);
+    bitSet(reg2p0, 4);
   }
 
-  _config[0][3] = reg0p3;
+  _config[0][2] = reg0p2;
   _config[2][0] = reg2p0;
 }
 
@@ -292,12 +299,15 @@ bool GP22::isDoubleRes() {
   return (_config[6][2] & B00010000) > 0;
 }
 void GP22::setQuadRes() {
-  uint8_t configPiece = _config[6][2];
+  // Quad res is only available in measurement mode 2.
+  if (getMeasurementMode() == 2) {
+    uint8_t configPiece = _config[6][2];
 
-  bitSet(configPiece, 5);
-  bitClear(configPiece, 4);
+    bitSet(configPiece, 5);
+    bitClear(configPiece, 4);
 
-  _config[6][2] = configPiece;
+    _config[6][2] = configPiece;
+  }
 }
 bool GP22::isQuadRes() {
   return (_config[6][2] & B00100000) > 0;
@@ -306,9 +316,9 @@ void GP22::setAutoCalcOn(bool on) {
   uint8_t configPiece = _config[3][0];
 
   if (on)
-    bitSet(configPiece, 0);
+    bitSet(configPiece, 7);
   else
-    bitClear(configPiece, 0);
+    bitClear(configPiece, 7);
 
   _config[3][0] = configPiece;
 }
@@ -322,7 +332,7 @@ void GP22::setFirstWaveMode(bool on) {
 
   bitSet(configPiece, 6);
 
-  _config[4][0] = configPiece;
+  _config[3][0] = configPiece;
 }
 bool GP22::isFirstWaveMode() {
   return (_config[3][0] & B01000000) > 0;

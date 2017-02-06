@@ -99,6 +99,9 @@ public:
   // Call this after changing any of the settings to update them on the GP22 itself.
   // (You can do a series of settings changes and call this at the end.)
   void updateConfig();
+
+  // Will fill a 7 by 32 bit array with the config registers
+  void getConfig(uint32_t * arrayToFill);
     
 private:
 
