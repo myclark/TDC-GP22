@@ -1,7 +1,10 @@
 #include "GP22.h"
 
 GP22::GP22(int slaveSelectPin) {
+  // Set the internal variable for the SPI slave select.
   _ssPin = slaveSelectPin;
+  // Precalculate the conversion factor based on default settings.
+  updateConversionFactor();
 }
 
 GP22::~GP22() {
@@ -88,6 +91,14 @@ bool GP22::testComms() {
 }
 
 float GP22::measConv(uint32_t input) {
+  // Use the precalculated conversion factor.
+  return ((float)input) * _conversionFactor;
+}
+
+void GP22::updateConversionFactor() {
+  // This number takes cycles to calculate, so precalculate it.
+  // It only needs calculating at startup and on changing the clock settings.
+
   // Input is a Q16.16 number representation, 
   // thus conversion is via multiplication by 2^(-16).
   // The input in also multiples of the clock (4MHz).
@@ -98,7 +109,7 @@ float GP22::measConv(uint32_t input) {
   float timeBase = 1000000.0;   //Microseconds
   float N = getClkPreDiv(); // The Clock predivider correction
 
-  return ((float)input) * tRef * qConv * timeBase * N;
+  _conversionFactor = tRef * qConv * timeBase * N;
 }
 
 void GP22::updateConfig() {
@@ -164,6 +175,9 @@ void GP22::setClkPreDiv(uint8_t div) {
   }
 
   _config[0][1] = configPiece;
+
+  // As the clock settings have been changed...
+  updateConversionFactor();
 }
 uint8_t GP22::getClkPreDiv() {
   uint8_t divRaw = (_config[0][1] & B00110000) >> 4;

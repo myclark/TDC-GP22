@@ -113,6 +113,10 @@ private:
   // The slave select pin used by SPI to communicate with the GP22
   int _ssPin;
 
+  // Have the conversion from the raw result to time precalculated.
+  void updateConversionFactor();
+  float _conversionFactor;
+
   // Set the config to single pulse measurement mode 2 as default for now
   uint8_t _config[7][4] = {
     {0xF3, 0x07, 0x68, 0x00}, // Reg 0
