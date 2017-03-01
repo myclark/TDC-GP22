@@ -31,14 +31,22 @@ void GP22::measure() {
   SPI.transfer(_ssPin, 0x70);
 }
 
-uint16_t GP22::readStatus() {
+void GP22::readStatus() {
   // Get the TDC status from it's stat register
-  uint16_t stat = transfer2B(0xB4, 0x00, 0x00);
-
-  // It might be worth splitting up the result into more meaningful data than just a 16 bit number.
-  // These numbers could go into private variables that other functions can access.
-
-  return stat;
+  _status = transfer2B(0xB4, 0x00, 0x00);
+}
+bool GP22::timedOut() {
+  return (_status & 0x0600) > 0;
+}
+uint8_t GP22::getMeasuredHits(Channel channel) {
+  if (channel == CH1) {
+    return (_status & 0x0038) >> 3;
+  } else if (channel == CH2) {
+    return (_status & 0x01C0) >> 6;
+  }
+}
+uint8_t GP22::getReadPointer() {
+  return _status & 0x0007;
 }
 
 //Function to read from result registers
@@ -200,18 +208,26 @@ uint8_t GP22::getClkPreDiv() {
 }
 
 // The hits of Ch1 are stored in bits 16-18 in register 1
-void GP22::setExpectedHits(uint8_t hits) {
+void GP22::setExpectedHits(Channel channel, uint8_t hits) {
   // First lets get the bit of the config register we want to modify
   uint8_t configPiece = _config[1][1];
 
   // Now, we need to set and clear bits as necessary
   // The minimum number of hits is 0, the max is 4.
   if (hits >= 0 & hits <= 4) {
-    bitClear(configPiece, 0);
-    bitClear(configPiece, 1);
-    bitClear(configPiece, 2);
+    if (channel == CH1) {
+      bitClear(configPiece, 0);
+      bitClear(configPiece, 1);
+      bitClear(configPiece, 2);
 
-    configPiece += hits;
+      configPiece += hits;
+    } else if (channel == CH2) {
+      bitClear(configPiece, 3);
+      bitClear(configPiece, 4);
+      bitClear(configPiece, 5);
+
+      configPiece += (hits << 3);
+    }
   }
 
   // Now that the peice of the config that needed to be changed has been, lets put it back
@@ -220,8 +236,12 @@ void GP22::setExpectedHits(uint8_t hits) {
   // (in case they want to chain together setting modifications).
   // Also, so this can be called before the begin function is called.
 }
-uint8_t GP22::getExpectedHits() {
-  return _config[1][1] & B00000111;
+uint8_t GP22::getExpectedHits(Channel channel) {
+  if (channel == CH1) {
+    return _config[1][1] & B00000111;
+  } else if (channel == CH2) {
+    return (_config[1][1] & B00111000) >> 3;
+  }
 }
 
 // Define HIT operators for ALU processing

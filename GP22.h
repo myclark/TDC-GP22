@@ -5,6 +5,10 @@
 #include "stdint.h"
 #include "SPI.h"
 
+enum Channel: uint8_t {
+  CH1, CH2
+};
+
 //Setup the 32 to 8 bit variable type
 union FourByte {
   uint32_t bit32;
@@ -25,8 +29,15 @@ public:
   // Initialise the GP22, then it waits for an event to measure.
   void measure();
 
-  // Read the GP22s status register
-  uint16_t readStatus();
+  /// Status related functions
+  // Read the GP22s status register into memory
+  void readStatus();
+  // Was there a timeout?
+  bool timedOut();
+  // How many hits were there for each channel?
+  uint8_t getMeasuredHits(Channel channel);
+  // What is the current read register pointer?
+  uint8_t getReadPointer();
 
   // The measurement reading command
   uint32_t readResult(uint8_t resultRegister);
@@ -40,8 +51,8 @@ public:
 
   //// These are the config setting/getting functions
   /// This is for the number of expected hits, can be 2-4
-  void setExpectedHits(uint8_t hits);
-  uint8_t getExpectedHits();
+  void setExpectedHits(Channel channel, uint8_t hits);
+  uint8_t getExpectedHits(Channel channel);
 
   /// These are for the resolution mode of the measurement
   void setSingleRes();
@@ -112,6 +123,7 @@ private:
 
   // The slave select pin used by SPI to communicate with the GP22
   int _ssPin;
+  uint16_t _status;
 
   // Have the conversion from the raw result to time precalculated.
   void updateConversionFactor();
