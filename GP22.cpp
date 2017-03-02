@@ -244,6 +244,16 @@ uint8_t GP22::getExpectedHits(Channel channel) {
   }
 }
 
+void GP22::updateALUInstruction(ALUInstruction instruction) {
+  // First, update the config registers
+  defineHit1Op(instruction.hit1Op);
+  defineHit2Op(instruction.hit2Op);
+  // Now, we only want to update the relevent config register,
+  // as this is quicker than doing everything...
+  // The config register with the operators is Reg 1, so update that one!
+  transfer4B((0x81), _config[1][0], _config[1][1], _config[1][2], _config[1][3]);
+}
+
 // Define HIT operators for ALU processing
 void GP22::defineHit1Op(uint8_t op) {
   uint8_t configPiece = _config[1][0];

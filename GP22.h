@@ -5,6 +5,7 @@
 #include "stdint.h"
 #include "SPI.h"
 
+// Make it easy to mention the channels
 enum Channel: uint8_t {
   CH1, CH2
 };
@@ -14,6 +15,12 @@ union FourByte {
   uint32_t bit32;
   uint16_t bit16[2];
   uint8_t bit8[4];
+};
+
+struct ALUInstruction {
+  int id;
+  uint8_t hit1Op;
+  uint8_t hit2Op;
 };
 
 class GP22
@@ -30,7 +37,8 @@ public:
   void measure();
 
   /// Status related functions
-  // Read the GP22s status register into memory
+  // Read the GP22s status register into memory.
+  // This must be called first to update the status from the TDC.
   void readStatus();
   // Was there a timeout?
   bool timedOut();
@@ -83,6 +91,8 @@ public:
   // Define HIT2 operator
   void defineHit2Op(uint8_t op);
   uint8_t getHit2Op();
+  // Fast update the ALU hit operators for doing multiple ALU calculations.
+  void updateALUInstruction(ALUInstruction instruction);
 
   /// Set the channel edge sensitivities
   // The edge sensitivity can be 0 (rising), 1 (falling) or 2 (both).
