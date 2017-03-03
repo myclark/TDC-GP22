@@ -21,6 +21,8 @@ struct ALUInstruction {
   int id;
   uint8_t hit1Op;
   uint8_t hit2Op;
+  Channel channel;
+  uint8_t numHitsReq;
 };
 
 class GP22
