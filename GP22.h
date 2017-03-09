@@ -50,14 +50,14 @@ public:
   uint8_t getReadPointer();
 
   // The measurement reading command
-  uint32_t readResult(uint8_t resultRegister);
+  int32_t readResult(uint8_t resultRegister);
 
   // Test to make sure that the communication is working
   bool testComms();
 
   // This is the conversion function which takes a raw input
   // and converts it to microseconds
-  float measConv(uint32_t input);
+  float measConv(int32_t input);
 
   //// These are the config setting/getting functions
   /// This is for the number of expected hits, can be 2-4

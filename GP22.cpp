@@ -49,8 +49,8 @@ uint8_t GP22::getReadPointer() {
   return _status & 0x0007;
 }
 
-//Function to read from result registers
-uint32_t GP22::readResult(uint8_t resultRegister) {
+//Function to read from result registers (as a signed int, as MM1 uses 2's comp)
+int32_t GP22::readResult(uint8_t resultRegister) {
   // Make sure that we are only reading one of the 4 possibilities
   if (resultRegister < 4 && resultRegister >= 0) {
     // The first read code is 0xB0, so add the register to get the required read code.
@@ -98,7 +98,7 @@ bool GP22::testComms() {
   }
 }
 
-float GP22::measConv(uint32_t input) {
+float GP22::measConv(int32_t input) {
   // Use the precalculated conversion factor.
   return ((float)input) * _conversionFactor;
 }
