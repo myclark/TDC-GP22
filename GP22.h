@@ -138,8 +138,9 @@ private:
   uint16_t _status;
 
   // Have the conversion from the raw result to time precalculated.
-  void updateConversionFactor();
-  float _conversionFactor;
+  void updateConversionFactors();
+  float _conversionFactorRead;
+  float _conversionFactorDelay;
 
   // Set the config to single pulse measurement mode 2 as default for now
   uint8_t _config[7][4] = {

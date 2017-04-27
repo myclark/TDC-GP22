@@ -4,7 +4,7 @@ GP22::GP22(int slaveSelectPin) {
   // Set the internal variable for the SPI slave select.
   _ssPin = slaveSelectPin;
   // Precalculate the conversion factor based on default settings.
-  updateConversionFactor();
+  updateConversionFactors();
 }
 
 GP22::~GP22() {
@@ -39,10 +39,11 @@ bool GP22::timedOut() {
   return (_status & 0x0600) > 0;
 }
 uint8_t GP22::getMeasuredHits(Channel channel) {
-  if (channel == CH1) {
-    return (_status & 0x0038) >> 3;
-  } else if (channel == CH2) {
-    return (_status & 0x01C0) >> 6;
+  switch (channel) {
+    case CH1:
+      return (_status & 0x0038) >> 3;
+    case CH2:
+      return (_status & 0x01C0) >> 6;
   }
 }
 uint8_t GP22::getReadPointer() {
@@ -100,10 +101,10 @@ bool GP22::testComms() {
 
 float GP22::measConv(int32_t input) {
   // Use the precalculated conversion factor.
-  return ((float)input) * _conversionFactor;
+  return ((float)input) * _conversionFactorRead;
 }
 
-void GP22::updateConversionFactor() {
+void GP22::updateConversionFactors() {
   // This number takes cycles to calculate, so precalculate it.
   // It only needs calculating at startup and on changing the clock settings.
 
@@ -112,12 +113,14 @@ void GP22::updateConversionFactor() {
   // The input in also multiples of the clock (4MHz).
   // Output is in microseconds.
 
-  float qConv = pow(2.0, -16);    //Q conversion factor
+  float qConvRead = pow(2.0, -16);    //Q conversion factor
+  float qConvDelay = pow(2.0, -5);
   float tRef = (1.0) / (4000000.0); //4MHz clock
   float timeBase = 1000000.0;   //Microseconds
-  float N = getClkPreDiv(); // The Clock predivider correction
+  float N = (float)getClkPreDiv(); // The Clock predivider correction
 
-  _conversionFactor = tRef * qConv * timeBase * N;
+  _conversionFactorRead = tRef * qConvRead * timeBase * N;
+  _conversionFactorDelay = tRef * qConvDelay * timeBase * N;
 }
 
 void GP22::updateConfig() {
@@ -185,26 +188,24 @@ void GP22::setClkPreDiv(uint8_t div) {
   _config[0][1] = configPiece;
 
   // As the clock settings have been changed...
-  updateConversionFactor();
+  updateConversionFactors();
 }
 uint8_t GP22::getClkPreDiv() {
   uint8_t divRaw = (_config[0][1] & B00110000) >> 4;
-  uint8_t div = 0;
 
   switch (divRaw) {
-    case 0:
-      div = 1;
-      break;
     case 1:
-      div = 2;
-      break;
+      // This means that the div is set do 2
+      return 2;
     case 2:
+      // This means 4, so does 3 so fall through
     case 3:
-      div = 4;
-      break;
+      // If we are here, the div is 4
+      return 4;
+    default:
+      // If in doubt (or it was zero), div is 1
+      return 1;
   }
-
-  return div;
 }
 
 // The hits of Ch1 are stored in bits 16-18 in register 1
